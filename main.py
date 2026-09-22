@@ -2426,26 +2426,31 @@ def process_update(update):
 
         message_id = message["message_id"]
 
-        # All callback buttons except My Accounts belong to the admin UI.
-        # Reject stale/forged admin callbacks from normal users.
+        # Use the callback sender for authorization. In a private admin chat
+        # it normally equals message.chat.id, but using from.id also avoids
+        # rejecting valid callbacks because of chat-id type/shape differences.
+        callback_user_id = str(cb.get("from", {}).get("id", ""))
         is_user_callback = data.startswith("myacc_") or data == "close_myacc"
-        if not is_user_callback and chat_id != ADMIN_CHAT_ID:
+        is_admin_callback = chat_id == str(ADMIN_CHAT_ID) or callback_user_id == str(ADMIN_CHAT_ID)
+        logger.info(f"Callback received: data={data!r}, chat_id={chat_id}, from_id={callback_user_id}")
+
+        if not is_user_callback and not is_admin_callback:
             answer_callback(cb["id"], "Admin only.")
             return
 
-        # Always acknowledge the callback quickly so Telegram clears the
-        # button loading spinner.
-        answer_callback(cb["id"])
+        # Acknowledge immediately; then run the action.
+        answer_callback(cb["id"], "Processing...")
 
-        if data.startswith("credp_"):
-            page = int(data.split("_")[1])
-            admin_list_creds(chat_id, page=page, message_id=message_id)
-        elif data.startswith("delc_"):
-            index = int(data.split("_")[1])
-            admin_delete_single_cred(chat_id, index, message_id)
-        elif data == "close_list":
-            delete_message(chat_id, message_id)
-            send_message("Closed.", chat_id, reply_markup=admin_keyboard())
+        try:
+            if data.startswith("credp_"):
+                page = int(data.split("_", 1)[1])
+                admin_list_creds(chat_id, page=page, message_id=message_id)
+            elif data.startswith("delc_"):
+                index = int(data.split("_", 1)[1])
+                admin_delete_single_cred(chat_id, index, message_id)
+            elif data == "close_list":
+                delete_message(chat_id, message_id)
+                send_message("Closed.", chat_id, reply_markup=admin_keyboard())
         elif data.startswith("appw_"):
             w_id = data[5:]
             admin_approve_withdraw(chat_id, w_id)
@@ -2511,10 +2516,11 @@ def process_update(update):
             # একই মেসেজে banned-user list রিফ্রেশ
             admin_show_banned_users(chat_id, page=0, message_id=message_id)
 
-        else:
-            # Unknown/stale callback: acknowledge it rather than leaving the
-            # Telegram button spinning forever.
-            send_message("⚠️ This button is no longer available. Please reopen the menu.", chat_id)
+            else:
+                send_message("⚠️ This button is no longer available. Please reopen the menu.", chat_id)
+        except Exception as e:
+            logger.exception(f"Callback action failed: data={data!r}: {e}")
+            send_message("❌ Button action failed. Please reopen Account List and try again.", chat_id)
 
 # ================== APPLICATION STARTUP ==================
 if __name__ == "__main__":
