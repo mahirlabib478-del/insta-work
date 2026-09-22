@@ -1034,14 +1034,19 @@ def generate_new_version():
     return datetime.now().strftime("%Y%m%d%H%M%S%f")
 
 def check_and_update_version():
-    current_version = config.get("bot_version", "0")
-    new_version = generate_new_version()
-    if current_version != new_version:
-        config["bot_version"] = new_version
+    """
+    Keep the bot version stable across process restarts.
+    The previous implementation generated a new timestamp on every boot,
+    which made every existing user hit the "Bot updated" gate and made
+    normal keyboard buttons appear unresponsive until /start was pressed.
+    """
+    current_version = str(config.get("bot_version", "") or "").strip()
+    if not current_version or current_version == "0":
+        config["bot_version"] = os.environ.get("BOT_VERSION", "1")
         save_json(CONFIG_FILE, config)
-        logger.info(f"Bot version updated to: {new_version}")
+        logger.info(f"Bot version initialized to: {config['bot_version']}")
     else:
-        logger.info("Version already up-to-date.")
+        logger.info(f"Bot version unchanged: {current_version}")
 
 # ================== METHOD FUNCTIONS ==================
 def send_method_content(chat_id):
@@ -2056,16 +2061,10 @@ def process_update(update):
             current_version = config.get("bot_version", "0")
 
             if user_version != current_version:
-                lang = get_lang(chat_id)
-
-                msg_text = (
-                    "🔄 **Bot updated!** Please press /start to continue."
-                    if lang == "en" else
-                    "🔄 **বট আপডেট হয়েছে!** চালিয়ে যেতে /start চাপুন।"
-                )
-
-                send_message(msg_text, chat_id)
-                return
+                # Do not block ordinary keyboard buttons after a restart/deploy.
+                # Silently migrate the user's session version instead.
+                user_info[uid]["last_version"] = current_version
+                save_json(USER_INFO_FILE, user_info)
 
         # ইউজারনেম আপডেট
         if "from" in msg and "username" in msg["from"]:
@@ -2383,7 +2382,22 @@ def process_update(update):
         cb = update["callback_query"]
         chat_id = str(cb["message"]["chat"]["id"])
         data = cb["data"]
-        message_id = cb["message"]["message_id"]
+        message = cb.get("message")
+        if not message or "chat" not in message:
+            answer_callback(cb["id"], "This button is no longer available.")
+            return
+
+        message_id = message["message_id"]
+
+        # All callback buttons except My Accounts belong to the admin UI.
+        # Reject stale/forged admin callbacks from normal users.
+        is_user_callback = data.startswith("myacc_") or data == "close_myacc"
+        if not is_user_callback and chat_id != ADMIN_CHAT_ID:
+            answer_callback(cb["id"], "Admin only.")
+            return
+
+        # Always acknowledge the callback quickly so Telegram clears the
+        # button loading spinner.
         answer_callback(cb["id"])
 
         if data.startswith("credp_"):
@@ -2434,17 +2448,36 @@ def process_update(update):
             delete_message(chat_id, message_id)
             send_message("Closed.", chat_id, reply_markup=admin_keyboard())
 
-        # ব্যান / আনব্যান কলব্যাক (fixed)
+        # ব্যান / আনব্যান কলব্যাক
         elif data.startswith("banuser_"):
-            uid = data.split("_",1)[1]
-            manual_ban_user(uid)
-            send_message(t("ban_success", chat_id, target=uid), chat_id)
-            try:
-                send_message("You have been banned by admin.", uid)
-            except:
-                pass
+            uid = data.split("_", 1)[1]
+            if uid == str(ADMIN_CHAT_ID):
+                send_message("You cannot ban yourself.", chat_id)
+            else:
+                manual_ban_user(uid)
+                send_message(t("ban_success", chat_id, target=uid), chat_id)
+                try:
+                    send_message("You have been banned by admin.", uid)
+                except Exception:
+                    pass
             # একই মেসেজে ইউজার লিস্ট রিফ্রেশ
             admin_show_user_list(chat_id, page=0, message_id=message_id)
+
+        elif data.startswith("unbanuser_"):
+            uid = data.split("_", 1)[1]
+            unban_user(uid)
+            send_message(t("unban_success", chat_id, target=uid), chat_id)
+            try:
+                send_message("You have been unbanned by admin.", uid)
+            except Exception:
+                pass
+            # একই মেসেজে banned-user list রিফ্রেশ
+            admin_show_banned_users(chat_id, page=0, message_id=message_id)
+
+        else:
+            # Unknown/stale callback: acknowledge it rather than leaving the
+            # Telegram button spinning forever.
+            send_message("⚠️ This button is no longer available. Please reopen the menu.", chat_id)
 
 # ================== APPLICATION STARTUP ==================
 if __name__ == "__main__":
