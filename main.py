@@ -1567,9 +1567,9 @@ def admin_show_user_list(chat_id, page=0, message_id=None):
     if not users:
         msg = t("no_users", chat_id)
         if message_id:
-            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []}, parse_mode=None)
         else:
-            send_message(msg, chat_id)
+            send_message(msg, chat_id, parse_mode=None)
         return
     per_page = 10
     total_pages = (len(users) + per_page - 1) // per_page
@@ -1606,9 +1606,9 @@ def admin_show_user_list(chat_id, page=0, message_id=None):
             kb["inline_keyboard"].append([{"text": f"🔨 Ban {uid}", "callback_data": f"banuser_{uid}"}])
     kb["inline_keyboard"].append([{"text": "🔙 Close", "callback_data": "close_userlist"}])
     if message_id:
-        edit_message_text(chat_id, message_id, text, reply_markup=kb)
+        edit_message_text(chat_id, message_id, text, reply_markup=kb, parse_mode=None)
     else:
-        send_message(text, chat_id, reply_markup=kb)
+        send_message(text, chat_id, reply_markup=kb, parse_mode=None)
 
 def admin_show_banned_users(chat_id, page=0, message_id=None):
     banned_users = [uid for uid in subscribed_users if is_banned(uid)[0]]
