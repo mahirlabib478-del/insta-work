@@ -2021,7 +2021,7 @@ def handle_updates():
         try:
             params = {
                 "timeout": 30,
-                "allowed_updates": ["message", "callback_query"]
+                "allowed_updates": json.dumps(["message", "callback_query"])
             }
             if last_update_id:
                 params["offset"] = last_update_id + 1
