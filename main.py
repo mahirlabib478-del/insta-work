@@ -183,11 +183,13 @@ def execute_backup():
 # ================== TELEGRAM HELPERS ==================
 def send_message(text, chat_id, reply_markup=None, parse_mode="Markdown"):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+    payload = {"chat_id": chat_id, "text": text}
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
-        return requests.post(url, json=payload, timeout=3)
+        return requests.post(url, json=payload, timeout=10)
     except Exception as e:
         logger.error(f"Send error: {e}")
         return None
@@ -218,13 +220,22 @@ def answer_callback(cb_id, text=None):
     except:
         pass
 
-def edit_message_text(chat_id, message_id, text, reply_markup=None):
+def edit_message_text(chat_id, message_id, text, reply_markup=None, parse_mode="Markdown"):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
-    payload = {"chat_id": chat_id, "message_id": message_id, "text": text, "parse_mode": "Markdown"}
+    payload = {"chat_id": chat_id, "message_id": message_id, "text": text}
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
-        return requests.post(url, json=payload, timeout=10)
+        resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code != 200 and parse_mode:
+            logger.warning(f"Edit with {parse_mode} failed: {resp.text[:300]}")
+            payload.pop("parse_mode", None)
+            resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code != 200:
+            logger.error(f"Edit error {resp.status_code}: {resp.text[:500]}")
+        return resp
     except Exception as e:
         logger.error(f"Edit error: {e}")
         return None
@@ -1187,7 +1198,10 @@ def admin_list_creds(chat_id, page=0, message_id=None):
     end = min(start + per_page, total)
     page_items = credentials[start:end]
     lang = get_lang(chat_id)
-    lines = [t("account_list", chat_id, page=page+1, total_pages=total_pages)]
+    # Credentials are user-supplied data. Keep the account list plain-text
+    # so Markdown characters in emails/passwords cannot break button refreshes.
+    lines = [f"📋 Account List (Page {page+1}/{total_pages})" if lang == "en"
+             else f"📋 অ্যাকাউন্ট তালিকা (পৃষ্ঠা {page+1}/{total_pages})"]
     status_text = {"en": {"used": "🔴 Used ({user})", "unused": "🟢 Unused"},
                    "bn": {"used": "🔴 ব্যবহৃত ({user})", "unused": "🟢 অব্যবহৃত"}}
     st = status_text.get(lang, status_text["en"])
@@ -1196,7 +1210,7 @@ def admin_list_creds(chat_id, page=0, message_id=None):
             status = st["used"].format(user=cred.get("assigned_to", "N/A"))
         else:
             status = st["unused"]
-        lines.append(f"`{cred['email']}` | `{cred['password']}` | {status}")
+        lines.append(f"{cred.get('email', 'N/A')} | {cred.get('password', 'N/A')} | {status}")
     text = "\n".join(lines)
     kb = {"inline_keyboard": []}
     nav = []
@@ -1210,9 +1224,9 @@ def admin_list_creds(chat_id, page=0, message_id=None):
         kb["inline_keyboard"].append([{"text": f"🗑️ {i+1}. {cred['email']}", "callback_data": f"delc_{i}"}])
     kb["inline_keyboard"].append([{"text": "🔙 Close" if lang == "en" else "🔙 বন্ধ", "callback_data": "close_list"}])
     if message_id:
-        edit_message_text(chat_id, message_id, text, reply_markup=kb)
+        edit_message_text(chat_id, message_id, text, reply_markup=kb, parse_mode=None)
     else:
-        send_message(text, chat_id, reply_markup=kb)
+        send_message(text, chat_id, reply_markup=kb, parse_mode=None)
 
 def admin_delete_single_cred(chat_id, index, message_id):
     deleted = delete_credential_by_index(index)
