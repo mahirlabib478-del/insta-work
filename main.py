@@ -2442,82 +2442,82 @@ def process_update(update):
         answer_callback(cb["id"], "Processing...")
 
         try:
-            if data.startswith("credp_"):
-                page = int(data.split("_", 1)[1])
-                admin_list_creds(chat_id, page=page, message_id=message_id)
-            elif data.startswith("delc_"):
-                index = int(data.split("_", 1)[1])
-                admin_delete_single_cred(chat_id, index, message_id)
-            elif data == "close_list":
+                if data.startswith("credp_"):
+                    page = int(data.split("_", 1)[1])
+                    admin_list_creds(chat_id, page=page, message_id=message_id)
+                elif data.startswith("delc_"):
+                    index = int(data.split("_", 1)[1])
+                    admin_delete_single_cred(chat_id, index, message_id)
+                elif data == "close_list":
+                    delete_message(chat_id, message_id)
+                    send_message("Closed.", chat_id, reply_markup=admin_keyboard())
+            elif data.startswith("appw_"):
+                w_id = data[5:]
+                admin_approve_withdraw(chat_id, w_id)
+                admin_show_withdraw_requests(chat_id, page=0, message_id=message_id)
+            elif data.startswith("rejw_"):
+                w_id = data[5:]
+                admin_reject_withdraw(chat_id, w_id)
+                admin_show_withdraw_requests(chat_id, page=0, message_id=message_id)
+            elif data.startswith("wpage_"):
+                page = int(data.split("_")[1])
+                admin_show_withdraw_requests(chat_id, page=page, message_id=message_id)
+            elif data == "close_withdraw":
                 delete_message(chat_id, message_id)
                 send_message("Closed.", chat_id, reply_markup=admin_keyboard())
-        elif data.startswith("appw_"):
-            w_id = data[5:]
-            admin_approve_withdraw(chat_id, w_id)
-            admin_show_withdraw_requests(chat_id, page=0, message_id=message_id)
-        elif data.startswith("rejw_"):
-            w_id = data[5:]
-            admin_reject_withdraw(chat_id, w_id)
-            admin_show_withdraw_requests(chat_id, page=0, message_id=message_id)
-        elif data.startswith("wpage_"):
-            page = int(data.split("_")[1])
-            admin_show_withdraw_requests(chat_id, page=page, message_id=message_id)
-        elif data == "close_withdraw":
-            delete_message(chat_id, message_id)
-            send_message("Closed.", chat_id, reply_markup=admin_keyboard())
-        elif data.startswith("papage_"):
-            page = int(data.split("_")[1])
-            admin_show_pending_approvals(chat_id, page=page, message_id=message_id)
-        elif data == "close_papprovals":
-            delete_message(chat_id, message_id)
-            send_message("Closed.", chat_id, reply_markup=admin_keyboard())
-        elif data.startswith("myacc_"):
-            page = int(data.split("_")[1])
-            show_my_accounts(chat_id, page=page, message_id=message_id)
-        elif data == "close_myacc":
-            delete_message(chat_id, message_id)
-            send_message("Closed.", chat_id, reply_markup=main_keyboard(chat_id))
-        elif data.startswith("usrlist_"):
-            page = int(data.split("_")[1])
-            admin_show_user_list(chat_id, page=page, message_id=message_id)
-        elif data.startswith("banlist_"):
-            page = int(data.split("_")[1])
-            admin_show_banned_users(chat_id, page=page, message_id=message_id)
-        elif data == "close_userlist":
-            delete_message(chat_id, message_id)
-            send_message("Closed.", chat_id, reply_markup=admin_keyboard())
-        elif data == "close_banlist":
-            delete_message(chat_id, message_id)
-            send_message("Closed.", chat_id, reply_markup=admin_keyboard())
+            elif data.startswith("papage_"):
+                page = int(data.split("_")[1])
+                admin_show_pending_approvals(chat_id, page=page, message_id=message_id)
+            elif data == "close_papprovals":
+                delete_message(chat_id, message_id)
+                send_message("Closed.", chat_id, reply_markup=admin_keyboard())
+            elif data.startswith("myacc_"):
+                page = int(data.split("_")[1])
+                show_my_accounts(chat_id, page=page, message_id=message_id)
+            elif data == "close_myacc":
+                delete_message(chat_id, message_id)
+                send_message("Closed.", chat_id, reply_markup=main_keyboard(chat_id))
+            elif data.startswith("usrlist_"):
+                page = int(data.split("_")[1])
+                admin_show_user_list(chat_id, page=page, message_id=message_id)
+            elif data.startswith("banlist_"):
+                page = int(data.split("_")[1])
+                admin_show_banned_users(chat_id, page=page, message_id=message_id)
+            elif data == "close_userlist":
+                delete_message(chat_id, message_id)
+                send_message("Closed.", chat_id, reply_markup=admin_keyboard())
+            elif data == "close_banlist":
+                delete_message(chat_id, message_id)
+                send_message("Closed.", chat_id, reply_markup=admin_keyboard())
 
-        # ব্যান / আনব্যান কলব্যাক
-        elif data.startswith("banuser_"):
-            uid = data.split("_", 1)[1]
-            if uid == str(ADMIN_CHAT_ID):
-                send_message("You cannot ban yourself.", chat_id)
-            else:
-                manual_ban_user(uid)
-                send_message(t("ban_success", chat_id, target=uid), chat_id)
+            # ব্যান / আনব্যান কলব্যাক
+            elif data.startswith("banuser_"):
+                uid = data.split("_", 1)[1]
+                if uid == str(ADMIN_CHAT_ID):
+                    send_message("You cannot ban yourself.", chat_id)
+                else:
+                    manual_ban_user(uid)
+                    send_message(t("ban_success", chat_id, target=uid), chat_id)
+                    try:
+                        send_message("You have been banned by admin.", uid)
+                    except Exception:
+                        pass
+                # একই মেসেজে ইউজার লিস্ট রিফ্রেশ
+                admin_show_user_list(chat_id, page=0, message_id=message_id)
+
+            elif data.startswith("unbanuser_"):
+                uid = data.split("_", 1)[1]
+                unban_user(uid)
+                send_message(t("unban_success", chat_id, target=uid), chat_id)
                 try:
-                    send_message("You have been banned by admin.", uid)
+                    send_message("You have been unbanned by admin.", uid)
                 except Exception:
                     pass
-            # একই মেসেজে ইউজার লিস্ট রিফ্রেশ
-            admin_show_user_list(chat_id, page=0, message_id=message_id)
+                # একই মেসেজে banned-user list রিফ্রেশ
+                admin_show_banned_users(chat_id, page=0, message_id=message_id)
 
-        elif data.startswith("unbanuser_"):
-            uid = data.split("_", 1)[1]
-            unban_user(uid)
-            send_message(t("unban_success", chat_id, target=uid), chat_id)
-            try:
-                send_message("You have been unbanned by admin.", uid)
-            except Exception:
-                pass
-            # একই মেসেজে banned-user list রিফ্রেশ
-            admin_show_banned_users(chat_id, page=0, message_id=message_id)
-
-            else:
-                send_message("⚠️ This button is no longer available. Please reopen the menu.", chat_id)
+                else:
+                    send_message("⚠️ This button is no longer available. Please reopen the menu.", chat_id)
         except Exception as e:
             logger.exception(f"Callback action failed: data={data!r}: {e}")
             send_message("❌ Button action failed. Please reopen Account List and try again.", chat_id)
