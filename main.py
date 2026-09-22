@@ -1175,7 +1175,10 @@ def admin_list_creds(chat_id, page=0, message_id=None):
     if total == 0:
         lang = get_lang(chat_id)
         msg = "📭 **No credentials available.**" if lang == "en" else "📭 **কোনো ক্রেডেনশিয়াল নেই।**"
-        send_message(msg, chat_id, reply_markup=admin_keyboard())
+        if message_id:
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+        else:
+            send_message(msg, chat_id, reply_markup=admin_keyboard())
         return
     per_page = 10
     total_pages = (total + per_page - 1) // per_page
@@ -1248,7 +1251,11 @@ def admin_stats(chat_id):
 def admin_show_withdraw_requests(chat_id, page=0, message_id=None):
     pending = [w for w in withdraw_requests if w["status"] == "pending"]
     if not pending:
-        send_message(t("no_pending", chat_id), chat_id, reply_markup=admin_keyboard())
+        msg = t("no_pending", chat_id)
+        if message_id:
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+        else:
+            send_message(msg, chat_id, reply_markup=admin_keyboard())
         return
     per_page = 5
     total = len(pending)
@@ -1402,7 +1409,11 @@ def process_restore_file(chat_id, file_content):
 def admin_show_pending_approvals(chat_id, page=0, message_id=None):
     pending = [acc for acc in created_accounts if acc.get("status") == "pending"]
     if not pending:
-        send_message(t("no_pending_approvals", chat_id), chat_id, reply_markup=admin_keyboard())
+        msg = t("no_pending_approvals", chat_id)
+        if message_id:
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+        else:
+            send_message(msg, chat_id, reply_markup=admin_keyboard())
         return
 
     per_page = 10
@@ -1497,7 +1508,11 @@ def show_my_accounts(chat_id, page=0, message_id=None):
     uid = str(chat_id)
     my_accs = [a for a in created_accounts if a.get("user_id") == uid]
     if not my_accs:
-        send_message(t("no_my_accounts", chat_id), chat_id)
+        msg = t("no_my_accounts", chat_id)
+        if message_id:
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+        else:
+            send_message(msg, chat_id)
         return
     per_page = 5
     total_pages = (len(my_accs) + per_page - 1) // per_page
@@ -1536,7 +1551,11 @@ def show_my_accounts(chat_id, page=0, message_id=None):
 def admin_show_user_list(chat_id, page=0, message_id=None):
     users = list(subscribed_users)
     if not users:
-        send_message(t("no_users", chat_id), chat_id)
+        msg = t("no_users", chat_id)
+        if message_id:
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+        else:
+            send_message(msg, chat_id)
         return
     per_page = 10
     total_pages = (len(users) + per_page - 1) // per_page
@@ -1580,7 +1599,11 @@ def admin_show_user_list(chat_id, page=0, message_id=None):
 def admin_show_banned_users(chat_id, page=0, message_id=None):
     banned_users = [uid for uid in subscribed_users if is_banned(uid)[0]]
     if not banned_users:
-        send_message(t("no_banned_users", chat_id), chat_id)
+        msg = t("no_banned_users", chat_id)
+        if message_id:
+            edit_message_text(chat_id, message_id, msg, reply_markup={"inline_keyboard": []})
+        else:
+            send_message(msg, chat_id)
         return
     per_page = 10
     total_pages = (len(banned_users) + per_page - 1) // per_page
