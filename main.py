@@ -15,7 +15,7 @@ from openpyxl.styles import Font, Alignment
 from io import BytesIO
 
 # ================== CONFIGURATION ==================
-BOT_TOKEN = "8633623562:AAGhkUcUDeCSHqGQ9HSJ2HFpoeXZi8XKNgo"
+BOT_TOKEN = "8633623562:AAFfqq3SIrQEA1PNLzF8EuXmRq0SvWjUO7U"
 ADMIN_CHAT_ID = "8538304896"
 CHANNEL_ID = "-1003903695158"
 
